@@ -105,21 +105,13 @@ class JSONRPC2Protocol(LineReceiver):
 
 	def _detect_message_type(self, message):
 		if isinstance(message, list):
-			if len(message) == 0:
-				return InvalidRequest()
-			else:
-				return self._batch_handler(message))
+			return self._batch_handler(message)
 		
 		elif isinstance(message, dict):
 			if "method" in message:
 				return self._request_handler(message)
 			elif "result" in message or "error" in message:
 				return self._response_handler(message)
-			else:
-				return InvalidRequest()
-			
-		else:
-			return InvalidRequest()
 		
 	def _batch_handler(self, batch):
 		pass
@@ -136,7 +128,7 @@ class JSONRPC2Protocol(LineReceiver):
 		if message.get("jsonrpc") != "2.0":
 			self._send(InvalidRequest())
 		
-		self._detect_message_type(message)
+		return self._detect_message_type(message)
 		
 			
 		
