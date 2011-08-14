@@ -9,15 +9,15 @@ from twisted.python import log
 
 
 def ParseError():
-	return json.dumps(Response(error=Error(-32700, message="Parse error.")))
+	return Response(error=Error(-32700, message="Parse error."))
 def InvalidRequest():
-	return json.dumps(Response(error=Error(-32600, message="Invalid request.")))
+	return Response(error=Error(-32600, message="Invalid request."))
 def MethodNotFound(id=None):
-	return json.dumps(Response(error=Error(-32601, message="Method not found."), id=id))
+	return Response(error=Error(-32601, message="Method not found."), id=id)
 def InvalidParams(id=None):
-	return json.dumps(Response(error=Error(-32602, message="Invalid params."), id=id))
+	return Response(error=Error(-32602, message="Invalid params."), id=id)
 def InternalError(id=None):
-	return json.dumps(Response(error=Error(-32603, message="Internal error."), id=id))
+	return Response(error=Error(-32603, message="Internal error."), id=id)
 
 
 def Request(method, params=None, id=None):
@@ -73,37 +73,7 @@ def Error(code, message, data=None):
 
 class JSONRPC2Protocol(LineReceiver):
 	
-		
-		
 	def _request_handler(self, message):
-		pass
-	
-	def _response_handler(self, message):
-		pass
-
-	def _detect_message_type(self, message):
-		if isinstance(message, list):
-			if len(message) == 0:
-				self.sendLine(InvalidRequest())
-			else:
-				self.sendLine(self._batch_handler(message))
-		
-		elif isinstance(message, dict):
-			if "method" in message:
-				self._request_handler(message)
-			elif "result" in message or "error" in message:
-				self._response_handler(message)
-			
-		else:
-			self.sendLine(InvalidRequest())
-		
-	def _batch_handler(self, batch):
-		pass
-		
-	def _line_handler(self):
-		if request.get("jsonrpc") != "2.0":
-			return InvalidRequest()
-
 		method = getattr(self, request.get("method"), None)
 		if not method or method in dir(LineReceiver) or \
 				request.get("method").startswith("_"):
@@ -111,28 +81,62 @@ class JSONRPC2Protocol(LineReceiver):
 		
 		result = None
 		params = request.get("params")
-		if isinstance(params, list):
-			result = method(*params)
-		elif isinstance(params, dict):
-			result = method(**params)
-		else:
-			self.sendLine(InvalidParams())
-			return
+		try:
+			if isinstance(params, list):
+				result = method(*params)
+			elif isinstance(params, dict):
+				result = method(**params)
+			else:
+				return InvalidParams()
+		except:
+			#STUB 
+			# TODO make it pass exception
+			return InvalidRequest()
+
 		
 		try:
-			response = json.dumps(Response(result=result, id=id))
-			self.sendLine(response)
+			if not request.get('id') is None:
+				return Response(result, id=request.get('id'))
 		except:
-			self.sendLine(ParseError())
+			return InvalidRequest()
+	
+	def _response_handler(self, message):
+		pass
+
+	def _detect_message_type(self, message):
+		if isinstance(message, list):
+			if len(message) == 0:
+				return InvalidRequest()
+			else:
+				return self._batch_handler(message))
 		
+		elif isinstance(message, dict):
+			if "method" in message:
+				return self._request_handler(message)
+			elif "result" in message or "error" in message:
+				return self._response_handler(message)
+			else:
+				return InvalidRequest()
+			
+		else:
+			return InvalidRequest()
+		
+	def _batch_handler(self, batch):
+		pass
+		
+	def _send(self, message):
+		self.sendLine(json.dumps(message))
+
 	def receiveLine(self, line):
 		try:
 			message = json.dumps(line)
 		except:
-			self.sendLine(ParseError())
+			self._send(ParseError())
+		
+		if message.get("jsonrpc") != "2.0":
+			self._send(InvalidRequest())
 		
 		self._detect_message_type(message)
-		return
 		
 			
 		
